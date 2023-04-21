@@ -1,0 +1,136 @@
+var dem1 = ee.Image("users/hbb0009/RTC/GammaDEMs/S1A_IW_20191220T122151_DVP_RTC10_G_gpuned_0004_dem"),
+    dem2 = ee.Image("projects/capable-fuze-227520/assets/S1A_IW_20190813T001127_DVP_RTC30_G_gpuned_8D93_dem"),
+    intersect_geo = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[84.23199151445303, 27.406622947829213],
+          [84.53411553789053, 25.924189829009457],
+          [86.98955987382803, 26.32860429463177],
+          [86.98406670976553, 26.412270654175295],
+          [87.60479424882803, 26.259657152110776],
+          [87.80804131914053, 27.450503838599804],
+          [87.76409600664053, 27.766902093580104],
+          [85.40203545976553, 28.158284117811398],
+          [85.34710381914053, 27.585287539569098]]]),
+    lc = ee.Image("projects/iscertc/assets/hkh_lc-2019");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+////////////////////////////////////////////////////////////////////////////////////////
+// SAR-RTC Comparison - SERVIR/ASF/Google
+// - Time Series   
+// ---Create and export random samples for time series analysis
+// Author: Helen Blue Parache, NASA Marshall Space Flight Center
+// Date created: 10/09/2020
+// Last modified:4/21/2023
+////////////////////////////////////////////////////////////////////////////////////////
+//Parts that the user has to change:
+// 1. Land Cover (var lc above & identify appropriate class in stratified sampling lines 49&50, 60&61) 
+// 2. DEM (var dem1 and dem2 above)
+// 3. user created polygon showing geometry of SAR imagery (var intersect_geo above)
+//
+//Assumptions:
+// 1. number of AS and DES scenes are (basically) equal
+// 2. land cover contains grassland and evergreen classes
+//    a. that there are a max of 20% or higher slope
+// 3. flat and steep terrain occur in both land cover classes (...)
+// ---------------- DEM to Slope --------------------------------------------------------
+// Calculate slope. Units are degrees, range is [0,90).
+//Two DEMs from ASF per AOI, one represents AS and one DES scenes
+var slope_dem1 = ee.Terrain.slope(dem1); //AOI = NP
+var slope_dem2 = ee.Terrain.slope(dem2); //bringing in a second DEM here, that corresponds to DES scenes
+Map.centerObject(slope_dem1);
+Map.addLayer(slope_dem1, {}, 'slope_dem1', false);
+Map.addLayer(slope_dem2, {}, 'slope_dem2', false);
+//mosaic slopes - take one slope value only where DEMs overlap
+var slope_cat_degree = ee.Image.cat([slope_dem1, slope_dem2]);
+var slope_mosaic_degree = slope_cat_degree.reduce(ee.Reducer.median());
+Map.addLayer(slope_mosaic_degree, {}, 'slope_mosaic', false);
+// ---------------- NP Land Cover -------------------------------------------------
+//Generate random points stratified by evergreen and grassland classes
+//Truckenbrodt et al used ~5000 samples per scene per land cover 
+//generate random points over AS & DES image (sampling from LC within grassland)
+var samples_grassland = lc.stratifiedSample({
+  numPoints: 5000, 
+  region: intersect_geo, //area of intersection of  all scenes, DEM, 
+  scale: 10,
+  seed: 1,
+  classValues: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], //different for each LC
+  classPoints: [0, 0, 0, 0, 5000, 0, 0, 0, 0, 0, 0, 0], //change
+  geometries: true,
+}); 
+//generate random points over as & des image (sampling from LC within evergreen)
+var samples_evergreen = lc.stratifiedSample({
+  numPoints: 5000, 
+  region: intersect_geo, 
+  scale: 10,
+  seed: 1,
+  classValues: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], //different for each LC
+  classPoints: [0, 0, 0, 5000, 0, 0, 0, 0, 0, 0, 0, 0], //change
+  geometries: true,
+}); 
+//Display LC
+Map.addLayer(lc, {}, "lc", false); //add param
+// Display the random points & LC
+Map.addLayer(samples_evergreen, {color:'005c06'}, "Samples - evergreen");
+Map.addLayer(samples_grassland, {color:'#7fff00'}, "Samples - grassland");
+// ----------------- Create Slope Samples -------------------------------------------------
+//// ---average by flat & steep (ascend vs. descend, VV vs. VH)
+// flat = 0 to 12 % slope and steep slope = 20% or higher
+// Convert percent to degrees
+// 12% --> 6.84 Degrees
+// 20% --> 11.31 Degrees
+var slopereclass = ee.Image(0) //background value is 0
+          .where(slope_mosaic_degree.gte(0).and(slope_mosaic_degree.lte(6.84)), 1) //1 is flat
+          .where(slope_mosaic_degree.gt(6.84).and(slope_mosaic_degree.lt(11.31)), 2) //2 is in the middle
+          .where(slope_mosaic_degree.gte(11.31), 3); //3 is steep
+var singleBandVis = {
+  min: 0,
+  max: 3,
+  palette: ['white', 'blue', 'yellow', 'red']
+};          
+Map.addLayer(slopereclass, singleBandVis, "slope reclass", false);
+//generate random samples - flat
+var samples_flat = slopereclass.stratifiedSample({
+  numPoints: 5000, 
+  region: intersect_geo, 
+  scale: 10,
+  seed: 1,
+  classValues: [0, 1, 2, 3],
+  classPoints: [0, 5000, 0, 0], 
+  geometries: true,
+});
+Map.addLayer(samples_flat, {}, "samples flat");
+//generate random samples - steep
+var samples_steep = slopereclass.stratifiedSample({
+  numPoints: 5000, 
+  region: intersect_geo, 
+  scale: 10,
+  seed: 1,
+  classValues: [0, 1, 2, 3],
+  classPoints: [0, 0, 0, 5000], 
+  geometries: true,
+});
+Map.addLayer(samples_steep, {}, "samples steep");
+///////////////////////Export////////////////////////////////////////////////////////
+Export.table.toAsset({
+  collection: samples_evergreen, 
+  description: 'samples_evergreen',
+  assetId: 'projects/iscertc/assets/samples_evergreen'
+  });
+Export.table.toAsset({
+  collection: samples_grassland, 
+  description: 'samples_grassland',
+  assetId: 'projects/iscertc/assets/samples_grassland'
+  });
+  
+Export.table.toAsset({
+  collection: samples_flat, 
+  description: 'samples_flat',
+  assetId: 'projects/iscertc/assets/samples_flat'
+  });
+  
+Export.table.toAsset({
+  collection: samples_steep, 
+  description: 'samples_steep',
+  assetId: 'projects/iscertc/assets/samples_steep'
+  });
