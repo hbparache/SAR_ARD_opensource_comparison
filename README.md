@@ -1,6 +1,6 @@
 # SAR_ARD_opensource_comparison
 
-Scripts for time series analysis of five ARD products 
+Scripts for time series analysis of five ARD SAR products 
 
 1. Generate samples for CoV time series comparison
 2. Generate samples for RMSE time series comparison
