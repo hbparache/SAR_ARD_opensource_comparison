@@ -15,5 +15,6 @@ Scripts for time series analysis of five ARD SAR products
 - Gamma to GRD
 - Gamma to GTC (Andreas Vollrath et al)
 - Gamma to SNAP 8
+5. Create figures & calculate CoV ranges
 
 Citation: Coming soon
