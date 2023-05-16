@@ -10,7 +10,7 @@ Scripts for time series analysis of five ARD SAR products
 - GTC (Andreas Vollrath et al)
 - Gamma
 - SNAP 8
-4. Compute RMSE over forest land cover class for:
+4. Compute RMSE, R2 over forest land cover class for:
 - Gamma to ISCE 2
 - Gamma to GRD
 - Gamma to GTC (Andreas Vollrath et al)
