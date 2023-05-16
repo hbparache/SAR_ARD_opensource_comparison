@@ -2,19 +2,20 @@
 
 Scripts for time series analysis of five ARD SAR products 
 
-1. Generate samples for CoV time series comparison
-2. Generate samples for RMSE time series comparison
-3. Compute CoV on a monthly basis for:
-- ISCE 2
-- GRD
-- GTC (Andreas Vollrath et al)
-- Gamma
-- SNAP 8
-4. Compute RMSE, R2 over forest land cover class for:
-- Gamma to ISCE 2
-- Gamma to GRD
-- Gamma to GTC (Andreas Vollrath et al)
-- Gamma to SNAP 8
-5. Create figures & calculate CoV ranges
+1. Generate samples 
+- for CoV time series comparison
+- for RMSE time series comparison
+2. Compute CoV (on a monthly basis):
+- for ISCE 2
+- for GRD
+- for GTC (Andreas Vollrath et al)
+- for Gamma
+- for SNAP 8
+3. Compute RMSE, R2 (over forest land cover class):
+- for Gamma to ISCE 2
+- for Gamma to GRD
+- for Gamma to GTC (Andreas Vollrath et al)
+- for Gamma to SNAP 8
+4. Create figures & calculate CoV ranges
 
 Citation: Coming soon
