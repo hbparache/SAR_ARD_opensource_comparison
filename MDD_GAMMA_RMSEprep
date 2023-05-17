@@ -1,0 +1,200 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var evergreen_samples_steep = ee.FeatureCollection("projects/iscertc/assets/mdd_samples_evergreen_steep"),
+    evergreen_samples_flat = ee.FeatureCollection("projects/iscertc/assets/mdd_samples_evergreen_flat"),
+    intersect_geo = ee.FeatureCollection("projects/iscertc/assets/intersect_geo_mdd_4-24-23");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+////////////////////////////////////////////////////////////////////////////////////////
+// SAR-RTC Comparison - SERVIR/ASF/Google 
+// - Time Series  
+// --- RMSE
+// Author: Helen Blue Parache, Marshall Space Flight Center
+// Date created: 10/09/2020
+// Last modified:5/9/2023
+// Stephanie Jimenez for assistance with time start (link to original script: https://code.earthengine.google.com/3c1c6eb666553a8c72a5e2d8a0ed383c )
+// Nick Clinton for table creation: https://docs.google.com/presentation/d/1D7rezUHPElCfYWHMRNBChHjbEv6nXDD8xnh7_YgyK6A/edit?usp=sharing
+////////////////////////////////////////////////////////////////////////////////////////
+// User will need to change the dataset that is being sampled, and the export to table id
+// bring in SAR dataset
+// prep points for RMSE calculation
+// edit user input below
+///////////////////////////////////////// SNAP ///////////////////////////////////////////////
+//Prep SAR data for RMSE 
+var assetList = ee.data.listAssets("projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD")['assets']
+                    .map(function(d) { return d.name });
+//print(assetList, "assetList") //275 elements
+var collection_prep = ee.ImageCollection(assetList);
+//print(collection, "collection");
+var imageIDs = ee.List(["projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190103T101414_DVP_RTC10_G_gpunem_693B_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190103T101414_DVP_RTC10_G_gpunem_693B_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190104T230809_DVP_RTC10_G_gpunem_E2A3_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190104T230809_DVP_RTC10_G_gpunem_E2A3_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190115T101414_DVP_RTC10_G_gpunem_3B0E_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190115T101414_DVP_RTC10_G_gpunem_3B0E_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190127T101414_DVP_RTC10_G_gpunem_0CBA_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190127T101414_DVP_RTC10_G_gpunem_0CBA_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190128T230808_DVP_RTC10_G_gpunem_ADE6_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190128T230808_DVP_RTC10_G_gpunem_ADE6_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190208T101413_DVP_RTC10_G_gpunem_0F96_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190208T101413_DVP_RTC10_G_gpunem_0F96_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190209T230808_DVP_RTC10_G_gpunem_4D0D_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190209T230808_DVP_RTC10_G_gpunem_4D0D_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190220T101413_DVP_RTC10_G_gpunem_DD99_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190220T101413_DVP_RTC10_G_gpunem_DD99_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190221T230808_DVP_RTC10_G_gpunem_A0F8_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190221T230808_DVP_RTC10_G_gpunem_A0F8_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190304T101413_DVP_RTC10_G_gpunem_A538_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190304T101413_DVP_RTC10_G_gpunem_A538_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190305T230808_DVP_RTC10_G_gpunem_0123_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190305T230808_DVP_RTC10_G_gpunem_0123_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190316T101413_DVP_RTC10_G_gpunem_D4F1_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190316T101413_DVP_RTC10_G_gpunem_D4F1_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190317T230808_DVP_RTC10_G_gpunem_6B57_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190317T230808_DVP_RTC10_G_gpunem_6B57_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190328T101413_DVP_RTC10_G_gpunem_6DCB_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190328T101413_DVP_RTC10_G_gpunem_6DCB_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190329T230808_DVP_RTC10_G_gpunem_AA8B_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190329T230808_DVP_RTC10_G_gpunem_AA8B_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190409T101414_DVP_RTC10_G_gpunem_2B6B_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190409T101414_DVP_RTC10_G_gpunem_2B6B_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190410T230808_DVP_RTC10_G_gpunem_E4A5_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190410T230808_DVP_RTC10_G_gpunem_E4A5_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190421T101414_DVP_RTC10_G_gpunem_C705_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190421T101414_DVP_RTC10_G_gpunem_C705_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190422T230809_DVP_RTC10_G_gpunem_70C6_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190422T230809_DVP_RTC10_G_gpunem_70C6_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190503T101415_DVP_RTC10_G_gpunem_2182_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190503T101415_DVP_RTC10_G_gpunem_2182_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190504T230809_DVP_RTC10_G_gpunem_CA1B_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190504T230809_DVP_RTC10_G_gpunem_CA1B_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190515T101415_DVP_RTC10_G_gpunem_0CB7_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190515T101415_DVP_RTC10_G_gpunem_0CB7_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190516T230810_DVP_RTC10_G_gpunem_7974_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190516T230810_DVP_RTC10_G_gpunem_7974_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190527T101416_DVP_RTC10_G_gpunem_8ADC_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190527T101416_DVP_RTC10_G_gpunem_8ADC_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190528T230810_DVP_RTC10_G_gpunem_F5B5_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190528T230810_DVP_RTC10_G_gpunem_F5B5_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190608T101416_DVP_RTC10_G_gpunem_B38C_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190608T101416_DVP_RTC10_G_gpunem_B38C_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190609T230811_DVP_RTC10_G_gpunem_E776_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190609T230811_DVP_RTC10_G_gpunem_E776_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190620T101417_DVP_RTC10_G_gpunem_6DD1_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190620T101417_DVP_RTC10_G_gpunem_6DD1_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190621T230812_DVP_RTC10_G_gpunem_1081_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190621T230812_DVP_RTC10_G_gpunem_1081_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190702T101418_DVP_RTC10_G_gpunem_9CA2_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190702T101418_DVP_RTC10_G_gpunem_9CA2_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190703T230813_DVP_RTC10_G_gpunem_AA54_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190703T230813_DVP_RTC10_G_gpunem_AA54_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190714T101419_DVP_RTC10_G_gpunem_10EF_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190714T101419_DVP_RTC10_G_gpunem_10EF_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190715T230813_DVP_RTC10_G_gpunem_B935_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190715T230813_DVP_RTC10_G_gpunem_B935_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190726T101419_DVP_RTC10_G_gpunem_C9F8_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190726T101419_DVP_RTC10_G_gpunem_C9F8_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190727T230814_DVP_RTC10_G_gpunem_CAAB_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190727T230814_DVP_RTC10_G_gpunem_CAAB_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190807T101420_DVP_RTC10_G_gpunem_124B_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190807T101420_DVP_RTC10_G_gpunem_124B_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190808T230815_DVP_RTC10_G_gpunem_84F4_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190808T230815_DVP_RTC10_G_gpunem_84F4_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190819T101421_DVP_RTC10_G_gpunem_4912_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190819T101421_DVP_RTC10_G_gpunem_4912_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190820T230816_DVP_RTC10_G_gpufem_012B_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190820T230816_DVP_RTC10_G_gpufem_012B_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190831T101421_DVP_RTC10_G_gpunem_6838_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190831T101421_DVP_RTC10_G_gpunem_6838_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190901T230816_DVP_RTC10_G_gpunem_B5EA_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190901T230816_DVP_RTC10_G_gpunem_B5EA_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190912T101422_DVP_RTC10_G_gpunem_A7DE_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190912T101422_DVP_RTC10_G_gpunem_A7DE_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190913T230817_DVP_RTC10_G_gpunem_D905_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20190913T230817_DVP_RTC10_G_gpunem_D905_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191006T101423_DVP_RTC10_G_gpunem_6AFD_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191006T101423_DVP_RTC10_G_gpunem_6AFD_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191007T230817_DVP_RTC10_G_gpunem_9613_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191007T230817_DVP_RTC10_G_gpunem_9613_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191018T101423_DVP_RTC10_G_gpunem_3B3C_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191018T101423_DVP_RTC10_G_gpunem_3B3C_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191019T230817_DVP_RTC10_G_gpunem_23E0_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191019T230817_DVP_RTC10_G_gpunem_23E0_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191030T101423_DVP_RTC10_G_gpunem_FE89_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191030T101423_DVP_RTC10_G_gpunem_FE89_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191031T230817_DVP_RTC10_G_gpunem_DA22_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191031T230817_DVP_RTC10_G_gpunem_DA22_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191111T101423_DVP_RTC10_G_gpunem_3D5B_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191111T101423_DVP_RTC10_G_gpunem_3D5B_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191112T230817_DVP_RTC10_G_gpunem_E358_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191112T230817_DVP_RTC10_G_gpunem_E358_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191123T101423_DVP_RTC10_G_gpunem_DA32_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191123T101423_DVP_RTC10_G_gpunem_DA32_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191124T230817_DVP_RTC10_G_gpunem_0BC8_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191124T230817_DVP_RTC10_G_gpunem_0BC8_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191205T101422_DVP_RTC10_G_gpunem_FCDA_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191205T101422_DVP_RTC10_G_gpunem_FCDA_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191206T230816_DVP_RTC10_G_gpunem_A95E_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191206T230816_DVP_RTC10_G_gpunem_A95E_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191217T101422_DVP_RTC10_G_gpunem_9DCF_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191217T101422_DVP_RTC10_G_gpunem_9DCF_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191218T230816_DVP_RTC10_G_gpunem_7086_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191218T230816_DVP_RTC10_G_gpunem_7086_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191229T101421_DVP_RTC10_G_gpufem_CE33_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191229T101421_DVP_RTC10_G_gpufem_CE33_VV",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191230T230815_DVP_RTC10_G_gpunem_B4B5_VH",
+"projects/servir-sco-assets/assets/SCO_AMZ/RTC_G_MDD/S1B_IW_20191230T230815_DVP_RTC10_G_gpunem_B4B5_VV"]);
+print(imageIDs.length(), "number of IDs");
+var add_prop = function (image){
+  var id = image.get('system:id');
+  var date = ee.String(ee.String(ee.String(id).split('_').get(5)).split('T').get(0)); //extract the date from the original image ID
+  var year = ee.Number.parse(date.slice(0,4)); //define year from string to number
+  var month = ee.Number.parse(date.slice(4,6)); //define month from string to number
+  var day = ee.Number.parse(date.slice(6,8)); //define day from string to number  
+  var image_prep = image.set("id", ee.String(id));
+  return image_prep.set('system:time_start', ee.Date.fromYMD(year, month, day).millis());
+};
+var collection = collection_prep.map(add_prop);
+//print(collection); 
+var vh_gamma = ee.ImageCollection(collection) 
+    .filter(ee.Filter.inList('id', imageIDs))
+    .filterMetadata('id', 'contains', 'VH')
+    .filter(ee.Filter.bounds(intersect_geo)) //JIC
+    .sort('system:time_start');
+var vv_gamma = ee.ImageCollection(collection)
+    .filter(ee.Filter.inList('id', imageIDs))
+    .filterMetadata('id', 'contains', 'VV')
+    .filter(ee.Filter.bounds(intersect_geo)) //JIC
+    .sort('system:time_start');
+//print(vh_gamma, "vh");
+//print(vv_gamma, "vv");
+//////////////////////////////// SWAP INPUTS BELOW //////////////////////////////////////////////////////
+//run once for vv and once for vh
+//run for evergreen_flat and evergreen_steep samples
+var input = vv_gamma;
+//var input = vh_gamma;
+var samples = evergreen_samples_flat;
+//var samples = evergreen_samples_steep;
+var folder_name = 'RMSE_prep';
+var desc = 'MDD_GAMMA_flat_vv'; // output file name for AOI, polarization, slope & product
+//////////////////////////////// SWAP INPUTS ABOVE //////////////////////////////////////////////////////
+// Collect point, image date, value triplets.
+print(samples);
+print(input);
+var triplets = input.map(function(image) {
+  return image.reduceRegions({
+    collection: samples,
+    reducer: ee.Reducer.mean(), 
+    scale: 10
+  }).filter(ee.Filter.neq('mean', null)).filter(ee.Filter.neq('mean', 0))
+//would be null if we were using masks for the areas outside of our imagery, see: https://stackoverflow.com/questions/55208625/missing-ndvi-values-when-reducing-landsat-image-collection-to-long-format-list-u
+    .map(function(f) { 
+      return f.set('Date', ee.Date(image.get('system:time_start'))); 
+    });
+}).flatten();
+print(triplets.first());
+Export.table.toDrive({
+  collection: triplets,
+  description: desc,
+  folder: folder_name,
+  fileNamePrefix: desc,
+  fileFormat: 'CSV'
+});
