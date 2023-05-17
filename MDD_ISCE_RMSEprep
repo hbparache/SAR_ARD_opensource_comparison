@@ -1,0 +1,86 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var evergreen_samples_flat = ee.FeatureCollection("projects/iscertc/assets/mdd_samples_evergreen_flat"),
+    evergreen_samples_steep = ee.FeatureCollection("projects/iscertc/assets/mdd_samples_evergreen_steep"),
+    intersect_geo = ee.FeatureCollection("projects/iscertc/assets/intersect_geo_mdd_4-24-23");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+// SAR-RTC Comparison - SERVIR/ASF/Google 
+// - Time Series  
+// --- RMSE prep MDD GTC 
+// Author: Helen Blue Parache, Marshall Space Flight Center
+// Date created: 10/09/2020
+// Last modified:05/10/2023
+// Stephanie Jimenez for assistance with time start (link to original script: https://code.earthengine.google.com/3c1c6eb666553a8c72a5e2d8a0ed383c )
+// Nick Clinton for table creation: https://docs.google.com/presentation/d/1D7rezUHPElCfYWHMRNBChHjbEv6nXDD8xnh7_YgyK6A/edit?usp=sharing
+////////////////////////////////////////////////////////////////////////////////////////
+// User will need to change the dataset that is being sampled, and the export to table id
+// bring in SAR dataset
+// prep points for RMSE calculation
+// edit user input below
+///////////////////////////////////////// ISCE ///////////////////////////////////////////////
+//Prep SAR data
+var assetList = ee.data.listAssets("projects/servir-sco-assets/assets/SCO_AMZ/RTC_ISCE_MDD_withDates/")['assets']
+                    .map(function(d) { return d.name });
+var ic_prep = ee.ImageCollection(assetList);
+//print(ic_prep, "ic"); //58 elements
+var add_prop = function (image){
+  var id = image.get('system:id');
+  return image.set('ID', id);
+};
+var ic_wprop = ic_prep.map(add_prop);
+var table_orig = ee.FeatureCollection("users/sj0114/GranulesOnly_Stephanie_test");
+var imageCollection = ee.ImageCollection("projects/iscertc/assets/MDD_ISCE_DES");
+var extract_set_date = function (image){
+  var id = ee.String(image.get('system:id'));
+  var name_prep = ee.String(id).split('[_]');
+  var name = name_prep.get(5);
+  var matched = table_orig.filter(ee.Filter.stringContains('MDD', name));
+  var matchedNameList = matched.first().toDictionary().values();
+  var img_name = matchedNameList.get(0);
+  var date = ee.String(ee.String(ee.String(img_name).split('_').get(4)).split('T').get(0)); 
+  var year = ee.Number.parse(date.slice(0,4)); //define year from string to number
+  var month = ee.Number.parse(date.slice(4,6)); //define month from string to number
+  var day = ee.Number.parse(date.slice(6,8)); //define day from string to number
+  var image_prep = image.set("ID", id);
+  return image_prep.set('system:time_start',ee.Date.fromYMD(year, month, day).millis());
+};
+var all_images = imageCollection.map(extract_set_date);
+//print(all_images, "check for date time") //yes
+//var ic_prep = ic_wprop.merge(all_images);
+var ic = ic_wprop.merge(all_images);
+// ---------------- Filter by VV & VH --------------------------------------------------
+//filter out VV images
+var vv_isce = ic.filterMetadata('ID', 'contains', 'VV');
+print(vv_isce, "vv isce"); 
+//filter out VH images
+var vh_isce = ic.filterMetadata('ID','contains','VH');
+print(vh_isce, "vh isce"); 
+//////////////////////////////// SWAP INPUTS BELOW //////////////////////////////////////////////////////
+//run for vv and for vh
+//run for evergreen_flat and evergreen_steep samples
+var input = vv_isce; //.sort('system:time_start');
+//var input = vh_isce; //.sort('system:time_start');
+var samples = evergreen_samples_flat;
+//var samples = evergreen_samples_steep;
+var folder_name = 'RMSE_prep';
+var desc = 'MDD_ISCE_flat_vv'; // output file name for AOI, samples, polarization, & product
+//////////////////////////////// SWAP INPUTS ABOVE //////////////////////////////////////////////////////
+// Collect point, image date, value triplets.
+var triplets = input.map(function(image) {
+  return image.reduceRegions({
+    collection: samples, //changed this
+    reducer: ee.Reducer.mean(), 
+    scale: 10
+  }).filter(ee.Filter.neq('mean', null)).filter(ee.Filter.neq('mean', 0))
+//would be null only if we were using masks for the areas outside of our imagery, see: https://stackoverflow.com/questions/55208625/missing-ndvi-values-when-reducing-landsat-image-collection-to-long-format-list-u
+    .map(function(f) { 
+      return f.set('Date', ee.Date(image.get('system:time_start'))); 
+    });
+}).flatten();
+print(triplets.first());
+Export.table.toDrive({
+  collection: triplets,
+  description: desc,
+  folder: folder_name,
+  fileNamePrefix: desc,
+  fileFormat: 'CSV'
+});
