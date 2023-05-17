@@ -1,0 +1,128 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var evergreen_samples_steep = ee.FeatureCollection("projects/iscertc/assets/mdd_samples_evergreen_steep"),
+    evergreen_samples_flat = ee.FeatureCollection("projects/iscertc/assets/mdd_samples_evergreen_flat"),
+    intersect_geo = ee.FeatureCollection("projects/iscertc/assets/intersect_geo_mdd_4-24-23");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+////////////////////////////////////////////////////////////////////////////////////////
+// SAR-RTC Comparison - SERVIR/ASF/Google 
+// - Time Series  
+// --- RMSE
+// Author: Helen Blue Parache, Marshall Space Flight Center
+// Date created: 10/09/2020
+// Last modified:5/10/2023
+// Stephanie Jimenez for assistance with time start (link to original script: https://code.earthengine.google.com/3c1c6eb666553a8c72a5e2d8a0ed383c )
+// Nick Clinton for table creation: https://docs.google.com/presentation/d/1D7rezUHPElCfYWHMRNBChHjbEv6nXDD8xnh7_YgyK6A/edit?usp=sharing
+////////////////////////////////////////////////////////////////////////////////////////
+// User will need to change the dataset that is being sampled, and the export to table id
+// bring in SAR dataset
+// prep points for RMSE calculation
+// edit user input below
+///////////////////////////////////////// SNAP /////////////////////////////////////////////// 
+//Prep SAR data for RMSE 
+//SNAP prep
+var imageIDs = ee.List(["S1B_IW_GRDH_1SDV_20190103T101414_20190103T101439_014328_01AA92_7D9B", "S1B_IW_GRDH_1SDV_20190104T230809_20190104T230834_014350_01AB40_BA33", 
+"S1B_IW_GRDH_1SDV_20190115T101414_20190115T101439_014503_01B03A_4439", "S1B_IW_GRDH_1SDV_20190127T101414_20190127T101439_014678_01B5D2_3B0A", "S1B_IW_GRDH_1SDV_20190128T230808_20190128T230833_014700_01B682_E797",
+"S1B_IW_GRDH_1SDV_20190208T101413_20190208T101438_014853_01BB8C_940D", "S1B_IW_GRDH_1SDV_20190209T230808_20190209T230833_014875_01BC41_2A6A", "S1B_IW_GRDH_1SDV_20190220T101413_20190220T101438_015028_01C151_EA49",
+"S1B_IW_GRDH_1SDV_20190221T230808_20190221T230833_015050_01C1FA_6916", "S1B_IW_GRDH_1SDV_20190304T101413_20190304T101438_015203_01C713_17EF", "S1B_IW_GRDH_1SDV_20190305T230808_20190305T230833_015225_01C7C5_4A2E",
+"S1B_IW_GRDH_1SDV_20190316T101413_20190316T101438_015378_01CCBE_781F", "S1B_IW_GRDH_1SDV_20190317T230808_20190317T230833_015400_01CD6B_65D4", "S1B_IW_GRDH_1SDV_20190328T101413_20190328T101438_015553_01D27A_7404",
+"S1B_IW_GRDH_1SDV_20190329T230808_20190329T230833_015575_01D324_A39E", "S1B_IW_GRDH_1SDV_20190409T101414_20190409T101439_015728_01D843_E7B3", "S1B_IW_GRDH_1SDV_20190410T230808_20190410T230833_015750_01D8F7_70FE",
+"S1B_IW_GRDH_1SDV_20190421T101414_20190421T101439_015903_01DE0C_E919", "S1B_IW_GRDH_1SDV_20190422T230809_20190422T230834_015925_01DEBF_C6D7", "S1B_IW_GRDH_1SDV_20190503T101415_20190503T101440_016078_01E3E6_D149",
+"S1B_IW_GRDH_1SDV_20190504T230809_20190504T230834_016100_01E49B_3784", "S1B_IW_GRDH_1SDV_20190515T101415_20190515T101440_016253_01E971_7A00", "S1B_IW_GRDH_1SDV_20190516T230810_20190516T230835_016275_01EA19_AAD4",
+"S1B_IW_GRDH_1SDV_20190527T101416_20190527T101441_016428_01EECF_79D2", "S1B_IW_GRDH_1SDV_20190528T230810_20190528T230835_016450_01EF7B_0F0C", "S1B_IW_GRDH_1SDV_20190608T101416_20190608T101441_016603_01F407_282F",
+"S1B_IW_GRDH_1SDV_20190609T230811_20190609T230836_016625_01F4AE_1822", "S1B_IW_GRDH_1SDV_20190620T101417_20190620T101442_016778_01F93E_D609", "S1B_IW_GRDH_1SDV_20190621T230812_20190621T230837_016800_01F9E4_D470",
+"S1B_IW_GRDH_1SDV_20190702T101418_20190702T101443_016953_01FE6B_BE7D", "S1B_IW_GRDH_1SDV_20190703T230813_20190703T230838_016975_01FF12_54C9", "S1B_IW_GRDH_1SDV_20190714T101419_20190714T101444_017128_020394_A8B6",
+"S1B_IW_GRDH_1SDV_20190715T230813_20190715T230838_017150_02043A_F0C3", "S1B_IW_GRDH_1SDV_20190726T101419_20190726T101444_017303_0208A8_2D9C", "S1B_IW_GRDH_1SDV_20190727T230814_20190727T230839_017325_020950_57E8",
+"S1B_IW_GRDH_1SDV_20190807T101420_20190807T101445_017478_020DEF_A757", "S1B_IW_GRDH_1SDV_20190808T230815_20190808T230840_017500_020E99_A85E", "S1B_IW_GRDH_1SDV_20190819T101421_20190819T101446_017653_021365_B751",
+"S1B_IW_GRDH_1SDV_20190820T230816_20190820T230841_017675_021411_7DA3", "S1B_IW_GRDH_1SDV_20190831T101421_20190831T101446_017828_0218D8_1ADE", "S1B_IW_GRDH_1SDV_20190901T230816_20190901T230841_017850_02197F_2672",
+"S1B_IW_GRDH_1SDV_20190912T101422_20190912T101447_018003_021E50_B3FB", "S1B_IW_GRDH_1SDV_20190913T230817_20190913T230842_018025_021EF5_52BF", "S1B_IW_GRDH_1SDV_20191006T101423_20191006T101448_018353_022937_B959",
+"S1B_IW_GRDH_1SDV_20191007T230817_20191007T230842_018375_0229E0_2C3C", "S1B_IW_GRDH_1SDV_20191018T101423_20191018T101448_018528_022E97_0AEB", "S1B_IW_GRDH_1SDV_20191019T230817_20191019T230842_018550_022F40_8AD1",
+"S1B_IW_GRDH_1SDV_20191030T101423_20191030T101448_018703_02340F_3D8D", "S1B_IW_GRDH_1SDV_20191031T230817_20191031T230842_018725_0234B9_9881", "S1B_IW_GRDH_1SDV_20191111T101423_20191111T101448_018878_0239B4_3FCF",
+"S1B_IW_GRDH_1SDV_20191112T230817_20191112T230842_018900_023A5D_B8FB", "S1B_IW_GRDH_1SDV_20191123T101423_20191123T101448_019053_023F55_95B6", "S1B_IW_GRDH_1SDV_20191124T230817_20191124T230842_019075_023FFF_B829",
+"S1B_IW_GRDH_1SDV_20191205T101422_20191205T101447_019228_0244DD_9778", "S1B_IW_GRDH_1SDV_20191206T230816_20191206T230841_019250_024589_D25C", "S1B_IW_GRDH_1SDV_20191217T101422_20191217T101447_019403_024A73_D2A9",
+"S1B_IW_GRDH_1SDV_20191218T230816_20191218T230841_019425_024B1D_7FF6", "S1B_IW_GRDH_1SDV_20191229T101421_20191229T101446_019578_025007_DB2A", "S1B_IW_GRDH_1SDV_20191230T230815_20191230T230840_019600_0250B2_1237"]);
+print(imageIDs.length(), "number of IDs");
+ 
+var assetList = ee.data.listAssets("PREP/gestalt-ingest/S1_GRD_RTC/")['assets']
+                    .map(function(d) { return d.name });
+var collection = ee.ImageCollection(assetList)
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.bounds(intersect_geo)); // geo intersection    
+//print(imageIDs.length()); //
+//DES
+var des_vh_prep = ee.ImageCollection(collection)
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'DESCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VH'); //will need to repeat for Ascending being selected, then VH and VV
+var des_vv_prep = ee.ImageCollection(collection)
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'DESCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VV');
+//AS
+var as_vh_prep = ee.ImageCollection(collection)
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'ASCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VH'); 
+var as_vv_prep = ee.ImageCollection(collection)
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'ASCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VV');
+//rename bands to avoid "non homogenous" error later on
+function renameVVbands(image) {
+    return image.select('VV').rename('b1');
+}
+var des_vh = des_vh_prep.map(renameVVbands);
+function renameVHbands(image) {
+    return image.select('VH').rename('b1');
+}
+var des_vh = des_vh_prep.map(renameVHbands);
+var des_vv = des_vv_prep.map(renameVVbands);
+var as_vh = as_vh_prep.map(renameVHbands);
+var as_vv = as_vv_prep.map(renameVVbands);
+//print(des_vh, "des_vh");
+//print(as_vh, "as_vh");
+//merge to make appropriate sets (VV, VH)
+var vv_snap = des_vv.merge(as_vv);
+var vh_snap = des_vh.merge(as_vh);
+//print(vv_snap);
+//print(vh_snap);
+//////////////////////////////// SWAP INPUTS BELOW //////////////////////////////////////////////////////
+//run once for vv and once for vh
+//var input = vv_snap;
+var input = vh_snap;
+var samples = evergreen_samples_flat;
+//var samples = evergreen_samples_steep;
+var folder_name = 'RMSE_prep';
+var desc = 'MDD_SNAP_flat_vh'; // output file name for AOI, polarization, & product
+//////////////////////////////// SWAP INPUTS ABOVE //////////////////////////////////////////////////////
+// Collect block, image, value triplets.
+var triplets = input.map(function(image) {
+  return image.reduceRegions({
+    collection: samples, //changed this
+    reducer: ee.Reducer.mean(), 
+    scale: 10
+  }).filter(ee.Filter.neq('mean', 0))//null))
+    .map(function(f) { 
+      return f.set('Date', ee.Date(image.get('system:time_start'))); 
+    });
+}).flatten();
+print(triplets.first());
+Export.table.toDrive({
+  collection: triplets,
+  description: desc,
+  folder: folder_name,
+  fileNamePrefix: desc,
+  fileFormat: 'CSV'
+});
