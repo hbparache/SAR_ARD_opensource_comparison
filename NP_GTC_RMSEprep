@@ -1,0 +1,142 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var intersect_geo = ee.FeatureCollection("projects/iscertc/assets/intersect_geo_03-23"),
+    evergreen_samples_flat = ee.FeatureCollection("projects/iscertc/assets/np_samples_evergreen_flat_5000"),
+    evergreen_samples_steep = ee.FeatureCollection("projects/iscertc/assets/np_samples_evergreen_steep_5000");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+////////////////////////////////////////////////////////////////////////////////////////
+// SAR-RTC Comparison - SERVIR/ASF/Google 
+// - Time Series  
+// --- RMSE prep 
+// Author: Helen Blue Parache, Marshall Space Flight Center
+// Date created: 10/09/2020
+// Last modified:05/10/2023
+// Stephanie Jimenez for assistance with time start (link to original script: https://code.earthengine.google.com/3c1c6eb666553a8c72a5e2d8a0ed383c )
+// Nick Clinton for table creation: https://docs.google.com/presentation/d/1D7rezUHPElCfYWHMRNBChHjbEv6nXDD8xnh7_YgyK6A/edit?usp=sharing
+////////////////////////////////////////////////////////////////////////////////////////
+// User will need to change the dataset that is being sampled, and the export to table id
+// bring in SAR dataset
+// prep points for RMSE calculation
+// edit user input below
+///////////////////////////////////////// GTC ///////////////////////////////////////////////
+var slope_lib = require('users/andreasvollrath/radar:slope_correction_lib.js');
+var imageIDs = ee.List(["S1A_IW_GRDH_1SDV_20190106T122144_20190106T122209_025357_02CE8F_033B", "S1A_IW_GRDH_1SDV_20190118T122143_20190118T122208_025532_02D4DF_D927", "S1A_IW_GRDH_1SDV_20190130T122143_20190130T122208_025707_02DB45_7C66",
+"S1A_IW_GRDH_1SDV_20190211T122142_20190211T122207_025882_02E188_BFE6", "S1A_IW_GRDH_1SDV_20190223T122142_20190223T122207_026057_02E7C2_0CB6", "S1A_IW_GRDH_1SDV_20190307T122142_20190307T122207_026232_02EE03_5971", "S1A_IW_GRDH_1SDV_20190319T122142_20190319T122207_026407_02F480_DF6C", 
+"S1A_IW_GRDH_1SDV_20190331T122143_20190331T122208_026582_02FAEF_479B", "S1A_IW_GRDH_1SDV_20190424T122144_20190424T122209_026932_0307AE_BDDA", "S1A_IW_GRDH_1SDV_20190518T122145_20190518T122210_027282_03138C_D6A2", "S1A_IW_GRDH_1SDV_20190530T122145_20190530T122210_027457_031901_CD72",
+"S1A_IW_GRDH_1SDV_20190611T122146_20190611T122211_027632_031E5C_5391", "S1A_IW_GRDH_1SDV_20190623T122147_20190623T122212_027807_032394_6A09", "S1A_IW_GRDH_1SDV_20190705T122147_20190705T122212_027982_0328DD_8205", "S1A_IW_GRDH_1SDV_20190717T122148_20190717T122213_028157_032E2B_3004",
+"S1A_IW_GRDH_1SDV_20190729T122149_20190729T122214_028332_033383_BE6B", "S1A_IW_GRDH_1SDV_20190810T122150_20190810T122215_028507_0338FA_BF72", "S1A_IW_GRDH_1SDV_20190822T122150_20190822T122215_028682_033F08_B832", "S1A_IW_GRDH_1SDV_20190903T122151_20190903T122216_028857_034522_BE8A",
+"S1A_IW_GRDH_1SDV_20190915T122151_20190915T122216_029032_034B39_9F2D", "S1A_IW_GRDH_1SDV_20191009T122152_20191009T122217_029382_035736_E0CA", "S1A_IW_GRDH_1SDV_20191021T122152_20191021T122217_029557_035D43_F041", "S1A_IW_GRDH_1SDV_20191114T122152_20191114T122217_029907_03697A_885A", 
+"S1A_IW_GRDH_1SDV_20191126T122152_20191126T122217_030082_036F8C_6EB3", "S1A_IW_GRDH_1SDV_20191102T122152_20191102T122217_029732_036356_1B14", "S1A_IW_GRDH_1SDV_20191208T122151_20191208T122216_030257_03758D_3BE6", "S1A_IW_GRDH_1SDV_20191220T122151_20191220T122216_030432_037BA0_74EC", 
+"S1A_IW_GRDH_1SDV_20190927T122152_20190927T122217_029207_03512E_D3C6", "S1A_IW_GRDH_1SDV_20190813T001127_20190813T001152_028543_033A4C_F519", "S1A_IW_GRDH_1SDV_20190109T001121_20190109T001146_025393_02CFF3_4F22", "S1A_IW_GRDH_1SDV_20190121T001121_20190121T001146_025568_02D64D_0A2B",
+"S1A_IW_GRDH_1SDV_20190202T001120_20190202T001145_025743_02DCAD_47D8", "S1A_IW_GRDH_1SDV_20190214T001120_20190214T001145_025918_02E2E0_A706", "S1A_IW_GRDH_1SDV_20190226T001120_20190226T001145_026093_02E927_E9AC", "S1A_IW_GRDH_1SDV_20190310T001120_20190310T001145_026268_02EF76_6CD0",
+"S1A_IW_GRDH_1SDV_20190322T001120_20190322T001145_026443_02F5E3_E948", "S1A_IW_GRDH_1SDV_20190403T001120_20190403T001145_026618_02FC5A_686D", "S1A_IW_GRDH_1SDV_20190415T001120_20190415T001145_026793_0302BF_07F4", "S1A_IW_GRDH_1SDV_20190427T001121_20190427T001146_026968_030910_9800",
+"S1A_IW_GRDH_1SDV_20190509T001121_20190509T001146_027143_030F46_3A36", "S1A_IW_GRDH_1SDV_20190521T001122_20190521T001147_027318_0314BE_D75D", "S1A_IW_GRDH_1SDV_20190602T001123_20190602T001139_027493_031A2F_AA47", "S1A_IW_GRDH_1SDV_20190614T001123_20190614T001148_027668_031F7A_0B4F",
+"S1A_IW_GRDH_1SDV_20190708T001125_20190708T001150_028018_032A07_44E0", "S1A_IW_GRDH_1SDV_20190720T001126_20190720T001151_028193_032F4E_FB8F", "S1A_IW_GRDH_1SDV_20190801T001126_20190801T001151_028368_0334A7_6B7A", "S1A_IW_GRDH_1SDV_20190825T001128_20190825T001153_028718_034054_5E5E",
+"S1A_IW_GRDH_1SDV_20190906T001128_20190906T001153_028893_034670_E3F5", "S1A_IW_GRDH_1SDV_20190918T001129_20190918T001154_029068_034C7F_AEE1", "S1A_IW_GRDH_1SDV_20190930T001129_20190930T001154_029243_035286_4196", "S1A_IW_GRDH_1SDV_20191012T001129_20191012T001154_029418_035889_ABBB",
+"S1A_IW_GRDH_1SDV_20191024T001129_20191024T001154_029593_035E87_9D4D", "S1A_IW_GRDH_1SDV_20191105T001129_20191105T001154_029768_0364A9_C9D3", "S1A_IW_GRDH_1SDV_20191117T001129_20191117T001154_029943_036ACE_D98B", "S1A_IW_GRDH_1SDV_20191129T001129_20191129T001154_030118_0370E0_85B7",
+"S1A_IW_GRDH_1SDV_20191211T001128_20191211T001153_030293_0376E5_53A3", "S1A_IW_GRDH_1SDV_20191223T001128_20191223T001153_030468_037CF0_8CF4"]);
+print(imageIDs.length(), "number of IDs");
+var input2gtc = ee.ImageCollection("COPERNICUS/S1_GRD")
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.bounds(intersect_geo));
+print(input2gtc, "input to GTC function"); 
+function time_func (im) { 
+  var time = im.get('system:time_start');
+  return im.set('new_time', time);
+}
+var input2gtc_prep = input2gtc.map(time_func);
+var gtc_collection_prep = input2gtc_prep.map(slope_lib.slope_correction_image); //slope_lib.slope_correction(input2gtc_prep);//input2gtc_prep.map(slope_lib.slope_correction_image);//slope_lib.slope_correction_image(input2gtc_prep.first())//input2gtc_prep.map(slope_lib.slope_correction_image())//slope_lib.slope_correction(input2gtc_prep);
+function time_renew (im) { 
+  var time = im.get('new_time');
+  return im.set('system:time_start', time);
+}
+var gtc_collection_ = gtc_collection_prep.map(time_renew);
+print(gtc_collection_, "GTC collection");
+//Apply the NoData Mask
+function filterNoData (image) {
+  var mask = image.select("no_data_mask"); //select appropriate mask
+  return image.updateMask(mask); //apply mask to image
+}
+var gtc_collection = gtc_collection_.map(filterNoData); //not sure if this will work bc not applying to VV and VH separately, but we can move it down if it doesn't work
+print(gtc_collection);
+//DES
+var gtc_des_vh_prep = gtc_collection
+    .filterDate('2019-01-01', '2019-12-31') 
+    .filter(ee.Filter.eq('orbitProperties_pass', 'DESCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VH');
+var gtc_des_vv_prep = gtc_collection
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'DESCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VV');
+//AS
+var gtc_as_vh_prep = gtc_collection
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'ASCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VH'); 
+var gtc_as_vv_prep = gtc_collection
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'ASCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VV');
+//rename bands to avoid "non homogenous" error later on
+function renameVVbands(image) {
+    return image.select('VV').rename('b1');
+}
+var gtc_des_vh = gtc_des_vh_prep.map(renameVVbands);
+function renameVHbands(image) {
+    return image.select('VH').rename('b1');
+}
+var gtc_des_vh = gtc_des_vh_prep.map(renameVHbands);
+var gtc_des_vv = gtc_des_vv_prep.map(renameVVbands);
+var gtc_as_vh = gtc_as_vh_prep.map(renameVHbands);
+var gtc_as_vv = gtc_as_vv_prep.map(renameVVbands);
+//convert to power
+var toPWR = function(image) {
+  //var pwr = ee.Image(10).pow(image.select('DES').divide(10)).copyProperties({
+  var pwr = ee.Image(10).pow(image.divide(10)).copyProperties({
+    source: image,
+    properties: ['orbitProperties_pass', 'productType', 'system:index', 'system:time_start']}); // bc lost our properties again!
+  return pwr;
+};
+//merge to make appropriate sets (VV, VH)
+var gtc_vv_db = gtc_des_vv.merge(gtc_as_vv);
+var gtc_vh_db = gtc_des_vh.merge(gtc_as_vh);
+// apply conversion from dB to power to GRD image collections
+var vv_gtc = gtc_vv_db.map(toPWR);
+var vh_gtc = gtc_vh_db.map(toPWR);
+//////////////////////////////// SWAP INPUTS BELOW //////////////////////////////////////////////////////
+//run for vv and for vh
+//run for evergreen_flat and evergreen_steep samples
+var input = vv_gtc;
+//var input = vh_gtc;
+//var samples = evergreen_samples_flat;
+var samples = evergreen_samples_steep;
+var folder_name = 'RMSE_prep';
+var desc = 'NP_GTC_steep_vv'; // output file name for AOI, samples, polarization, & product
+//////////////////////////////// SWAP INPUTS ABOVE //////////////////////////////////////////////////////
+// Collect point, image date, value triplets.
+var triplets = input.map(function(image) {
+  return image.reduceRegions({
+    collection: samples, //changed this
+    reducer: ee.Reducer.mean(), 
+    scale: 10
+  }).filter(ee.Filter.neq('mean', null)).filter(ee.Filter.neq('mean', 0))
+    .map(function(f) { 
+      return f.set('Date', ee.Date(image.get('system:time_start'))); 
+    });
+}).flatten();
+print(triplets.first());
+Export.table.toDrive({
+  collection: triplets,
+  description: desc, 
+  fileNamePrefix: desc,
+  folder: folder_name,
+  fileFormat: 'CSV'
+});
