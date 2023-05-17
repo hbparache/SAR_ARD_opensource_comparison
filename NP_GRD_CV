@@ -1,0 +1,530 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var NP_AS = ee.ImageCollection("projects/servir-amazonia/RTC_Comparison/NP_AS"),
+    S1A_NP_DES = ee.ImageCollection("projects/servir-amazonia/RTC_Comparison/NP_DES"),
+    S1B_NP_DES = ee.ImageCollection("projects/servir-amazonia/RTC_Comparison/S1B_NP_DES"),
+    dem_0004 = ee.Image("users/hbb0009/RTC/GammaDEMs/S1A_IW_20191220T122151_DVP_RTC10_G_gpuned_0004_dem"),
+    intersect_geo = ee.FeatureCollection("projects/iscertc/assets/intersect_geo_03-23"),
+    samples_evergreen = ee.FeatureCollection("projects/iscertc/assets/np_samples_evergreen"),
+    samples_flat = ee.FeatureCollection("projects/iscertc/assets/np_samples_flat"),
+    samples_grassland = ee.FeatureCollection("projects/iscertc/assets/np_samples_grassland"),
+    samples_steep = ee.FeatureCollection("projects/iscertc/assets/np_samples_steep");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+////////////////////////////////////////////////////////////////////////////////////////
+// SAR-RTC Comparison - SERVIR/ASF/Google 
+// - Time Series  
+// --- Coefficient of Variation (CoV) by forest & grassland (VV vs. VH)
+// --- CoV by flat & steep (VV vs. VH)
+// Author: Helen Blue Parache, Marshall Space Flight Center
+// Date created: 10/09/2020
+// Last modified:3/21/2023
+////////////////////////////////////////////////////////////////////////////////////////
+//Parts that the user has to change:
+// 1. Samples (imported above as "samples_evergreen", "samples_flat", etc. keep same naming convention)
+// 2. AOI geometry (imported above as "intersect_geo")
+// 3. SAR data product (imported below from GEE)
+// 4. VV or VH (comment out to select your preferred input below)
+// ---------------- Define AOI Extent --------------------------------------------------------
+// define actual intersection using polygon tool (edge of DEMs included in geometry, but not actually containing slope info)
+Map.addLayer(intersect_geo, {}, "area intersection - SAR, DEM");
+///////////////////////////////////////// GRD ///////////////////////////////////////////////
+//Prep SAR data
+//NP
+var imageIDs = ee.List(["S1A_IW_GRDH_1SDV_20190106T122144_20190106T122209_025357_02CE8F_033B", "S1A_IW_GRDH_1SDV_20190118T122143_20190118T122208_025532_02D4DF_D927", "S1A_IW_GRDH_1SDV_20190130T122143_20190130T122208_025707_02DB45_7C66",
+"S1A_IW_GRDH_1SDV_20190211T122142_20190211T122207_025882_02E188_BFE6", "S1A_IW_GRDH_1SDV_20190223T122142_20190223T122207_026057_02E7C2_0CB6", "S1A_IW_GRDH_1SDV_20190307T122142_20190307T122207_026232_02EE03_5971", "S1A_IW_GRDH_1SDV_20190319T122142_20190319T122207_026407_02F480_DF6C", 
+"S1A_IW_GRDH_1SDV_20190331T122143_20190331T122208_026582_02FAEF_479B", "S1A_IW_GRDH_1SDV_20190424T122144_20190424T122209_026932_0307AE_BDDA", "S1A_IW_GRDH_1SDV_20190518T122145_20190518T122210_027282_03138C_D6A2", "S1A_IW_GRDH_1SDV_20190530T122145_20190530T122210_027457_031901_CD72",
+"S1A_IW_GRDH_1SDV_20190611T122146_20190611T122211_027632_031E5C_5391", "S1A_IW_GRDH_1SDV_20190623T122147_20190623T122212_027807_032394_6A09", "S1A_IW_GRDH_1SDV_20190705T122147_20190705T122212_027982_0328DD_8205", "S1A_IW_GRDH_1SDV_20190717T122148_20190717T122213_028157_032E2B_3004",
+"S1A_IW_GRDH_1SDV_20190729T122149_20190729T122214_028332_033383_BE6B", "S1A_IW_GRDH_1SDV_20190810T122150_20190810T122215_028507_0338FA_BF72", "S1A_IW_GRDH_1SDV_20190822T122150_20190822T122215_028682_033F08_B832", "S1A_IW_GRDH_1SDV_20190903T122151_20190903T122216_028857_034522_BE8A",
+"S1A_IW_GRDH_1SDV_20190915T122151_20190915T122216_029032_034B39_9F2D", "S1A_IW_GRDH_1SDV_20191009T122152_20191009T122217_029382_035736_E0CA", "S1A_IW_GRDH_1SDV_20191021T122152_20191021T122217_029557_035D43_F041", "S1A_IW_GRDH_1SDV_20191114T122152_20191114T122217_029907_03697A_885A", 
+"S1A_IW_GRDH_1SDV_20191126T122152_20191126T122217_030082_036F8C_6EB3", "S1A_IW_GRDH_1SDV_20191102T122152_20191102T122217_029732_036356_1B14", "S1A_IW_GRDH_1SDV_20191208T122151_20191208T122216_030257_03758D_3BE6", "S1A_IW_GRDH_1SDV_20191220T122151_20191220T122216_030432_037BA0_74EC", 
+"S1A_IW_GRDH_1SDV_20190927T122152_20190927T122217_029207_03512E_D3C6", "S1A_IW_GRDH_1SDV_20190813T001127_20190813T001152_028543_033A4C_F519", "S1A_IW_GRDH_1SDV_20190109T001121_20190109T001146_025393_02CFF3_4F22", "S1A_IW_GRDH_1SDV_20190121T001121_20190121T001146_025568_02D64D_0A2B",
+"S1A_IW_GRDH_1SDV_20190202T001120_20190202T001145_025743_02DCAD_47D8", "S1A_IW_GRDH_1SDV_20190214T001120_20190214T001145_025918_02E2E0_A706", "S1A_IW_GRDH_1SDV_20190226T001120_20190226T001145_026093_02E927_E9AC", "S1A_IW_GRDH_1SDV_20190310T001120_20190310T001145_026268_02EF76_6CD0",
+"S1A_IW_GRDH_1SDV_20190322T001120_20190322T001145_026443_02F5E3_E948", "S1A_IW_GRDH_1SDV_20190403T001120_20190403T001145_026618_02FC5A_686D", "S1A_IW_GRDH_1SDV_20190415T001120_20190415T001145_026793_0302BF_07F4", "S1A_IW_GRDH_1SDV_20190427T001121_20190427T001146_026968_030910_9800",
+"S1A_IW_GRDH_1SDV_20190509T001121_20190509T001146_027143_030F46_3A36", "S1A_IW_GRDH_1SDV_20190521T001122_20190521T001147_027318_0314BE_D75D", "S1A_IW_GRDH_1SDV_20190602T001123_20190602T001139_027493_031A2F_AA47", "S1A_IW_GRDH_1SDV_20190614T001123_20190614T001148_027668_031F7A_0B4F",
+"S1A_IW_GRDH_1SDV_20190708T001125_20190708T001150_028018_032A07_44E0", "S1A_IW_GRDH_1SDV_20190720T001126_20190720T001151_028193_032F4E_FB8F", "S1A_IW_GRDH_1SDV_20190801T001126_20190801T001151_028368_0334A7_6B7A", "S1A_IW_GRDH_1SDV_20190825T001128_20190825T001153_028718_034054_5E5E",
+"S1A_IW_GRDH_1SDV_20190906T001128_20190906T001153_028893_034670_E3F5", "S1A_IW_GRDH_1SDV_20190918T001129_20190918T001154_029068_034C7F_AEE1", "S1A_IW_GRDH_1SDV_20190930T001129_20190930T001154_029243_035286_4196", "S1A_IW_GRDH_1SDV_20191012T001129_20191012T001154_029418_035889_ABBB",
+"S1A_IW_GRDH_1SDV_20191024T001129_20191024T001154_029593_035E87_9D4D", "S1A_IW_GRDH_1SDV_20191105T001129_20191105T001154_029768_0364A9_C9D3", "S1A_IW_GRDH_1SDV_20191117T001129_20191117T001154_029943_036ACE_D98B", "S1A_IW_GRDH_1SDV_20191129T001129_20191129T001154_030118_0370E0_85B7",
+"S1A_IW_GRDH_1SDV_20191211T001128_20191211T001153_030293_0376E5_53A3", "S1A_IW_GRDH_1SDV_20191223T001128_20191223T001153_030468_037CF0_8CF4"]);
+print(imageIDs.length(), "number of IDs");
+//DES
+var des_vh = ee.ImageCollection("COPERNICUS/S1_GRD")
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'DESCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VH'); //will need to repeat for Ascending being selected, then VH and VV
+var des_vv = ee.ImageCollection("COPERNICUS/S1_GRD")
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'DESCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VV');
+//AS
+var as_vh = ee.ImageCollection("COPERNICUS/S1_GRD")
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'ASCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VH'); 
+var as_vv = ee.ImageCollection("COPERNICUS/S1_GRD")
+    .filter(ee.Filter.inList('system:index', imageIDs))
+    .filterDate('2019-01-01', '2019-12-31')
+    .filter(ee.Filter.eq('orbitProperties_pass', 'ASCENDING')) // Filter by ascending orbit
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+    .filter(ee.Filter.bounds(intersect_geo)) // NP geo intersection
+    .select('VV');
+//merge to make appropriate sets (VV, VH)
+var vv_db = des_vv.merge(as_vv);
+var vh_db = des_vh.merge(as_vh);
+// Need to convert GRD from dB to power before performing calculations
+var toPWR = function(image) {
+  //var pwr = ee.Image(10).pow(image.select('DES').divide(10)).copyProperties({
+  var pwr = ee.Image(10).pow(image.divide(10)).copyProperties({
+    source: image,
+    properties: ['orbitProperties_pass', 'productType', 'system:index', 'system:time_start']}); // bc lost our properties again!
+  return pwr;
+};
+// apply conversion from dB to power to GRD image collections
+var vv_pw = vv_db.map(toPWR);
+var vh_pw = vh_db.map(toPWR);
+//////////////////////////////// SWAP INPUTS BELOW //////////////////////////////////////////////////////
+var input = vv_pw;
+//var input = vh_pw;
+//////////////////////////////// SWAP INPUTS ABOVE //////////////////////////////////////////////////////
+// ------------------- Calculate Monthly Mean & Variance -------------------------------------------------
+// one image per month of mean of all pixels, variance of all pixels
+var months = ee.List.sequence(1, 12);
+//print("months",months);
+//Next step would be to make this the monthly mean, variance calculations into functions
+//mean
+var monthly_mean = ee.ImageCollection.fromImages(
+  months.map(function (m) {
+    return input //would repeat this for each set VV vs VH, AS vs DES //trying to copy 
+      .filter(ee.Filter.calendarRange(m, m, 'month'))
+      .mean()
+      .set('month', m);
+ }));//.flatten()); //Need to flatten in order to have a feature collection of features rather than featureCollections (not features)*/
+//print(monthly_mean_grd_des, "grd monthly mean - check do I still have month as a property") //.copyProperties(m, ["month"])
+//Map.addLayer(monthly_mean_grd_des.first(),{}, "first image of DES GRD Monthly mean")
+//prints correctly now
+//variance
+var monthly_variance = ee.ImageCollection.fromImages(
+  months.map(function (m) {
+    return input 
+      .filter(ee.Filter.calendarRange(m, m, 'month'))
+      //.variance()
+      .reduce({reducer: ee.Reducer.variance()})
+      .set('month', m);
+ }));
+// ---------------- Get monthly mean for each sample ----------------------------------------------------
+// this is taking mean of means, acceptable bc all means have same sample number
+// ie same number of images for each selected pixel
+var properties = ee.List(['mean']);
+//var properties = ee.List(['month', 'mean']);
+//mean_landcover
+var mean_evergreen = monthly_mean.map(function (image) {
+  return image.reduceRegions({
+  collection: samples_evergreen,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+  }).copyProperties(image);
+});  
+var mean_grassland = monthly_mean.map(function (image) {
+  return image.reduceRegions({
+  collection: samples_grassland,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+  }).copyProperties(image);
+});  
+//mean_slope
+var mean_flat = monthly_mean.map(function (image) {
+  return image.reduceRegions({
+  collection: samples_flat,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+  }).copyProperties(image);
+});  
+var mean_steep = monthly_mean.map(function (image) {
+  return image.reduceRegions({
+  collection: samples_steep,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+  }).copyProperties(image);
+});  
+//print(mean_evergreen, "Check me: mean_evergreen") 
+//this should be 12 feature collections in a feature collection, one for each month
+// ---------------- Get monthly variance for each sample ----------------------------------------------------
+//NP_DES_variance_landcover
+var variance_evergreen = monthly_variance.map(function (image) {
+  return image.reduceRegions({
+  collection: samples_evergreen,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+  }).copyProperties(image);
+});  
+var variance_grassland = monthly_variance.map(function (image) {
+  return image.reduceRegions({
+  collection: samples_grassland,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+  }).copyProperties(image);
+});  
+//variance_slope
+var variance_flat = monthly_variance.map(function (image) {
+  return image.reduceRegions({
+  collection: samples_flat,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+  }).copyProperties(image);
+});  
+var variance_steep = monthly_variance.map(function (image) {
+  return image.reduceRegions({
+  collection: samples_steep,
+  reducer: ee.Reducer.mean(),
+  scale: 10
+  }).copyProperties(image);
+});  
+// ---------------- Separate by Month ---------------------------------------------------------
+// this is taking mean of means for each point, acceptable bc all means have same sample number
+// ie same number of images for each selected pixel
+var properties = ee.List(['mean']);
+//Make each month separate
+// LC - evergreen
+var jan_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 1)).flatten();
+//print(jan_mean_evergreen, "this is the january fc") //feature collection
+var feb_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 2)).flatten();
+var mar_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 3)).flatten();
+var apr_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 4)).flatten();
+var may_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 5)).flatten();
+var jun_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 6)).flatten();
+var jul_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 7)).flatten();
+var aug_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 8)).flatten();
+var sep_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 9)).flatten();
+var oct_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 10)).flatten();
+var nov_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 11)).flatten();
+var dec_mean_evergreen = mean_evergreen.filter(ee.Filter.eq('month', 12)).flatten();
+var jan_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 1)).flatten();
+var feb_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 2)).flatten();
+var mar_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 3)).flatten();
+var apr_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 4)).flatten();
+var may_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 5)).flatten();
+var jun_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 6)).flatten();
+var jul_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 7)).flatten();
+var aug_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 8)).flatten();
+var sep_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 9)).flatten();
+var oct_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 10)).flatten();
+var nov_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 11)).flatten();
+var dec_variance_evergreen = variance_evergreen.filter(ee.Filter.eq('month', 12)).flatten();
+//LC - grassland
+var jan_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 1)).flatten();
+var feb_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 2)).flatten();
+var mar_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 3)).flatten();
+var apr_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 4)).flatten();
+var may_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 5)).flatten();
+var jun_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 6)).flatten();
+var jul_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 7)).flatten();
+var aug_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 8)).flatten();
+var sep_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 9)).flatten();
+var oct_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 10)).flatten();
+var nov_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 11)).flatten();
+var dec_mean_grassland = mean_grassland.filter(ee.Filter.eq('month', 12)).flatten();
+var jan_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 1)).flatten();
+var feb_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 2)).flatten();
+var mar_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 3)).flatten();
+var apr_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 4)).flatten();
+var may_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 5)).flatten();
+var jun_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 6)).flatten();
+var jul_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 7)).flatten();
+var aug_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 8)).flatten();
+var sep_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 9)).flatten();
+var oct_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 10)).flatten();
+var nov_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 11)).flatten();
+var dec_variance_grassland = variance_grassland.filter(ee.Filter.eq('month', 12)).flatten();
+//slope - flat
+var jan_mean_flat = mean_flat.filter(ee.Filter.eq('month', 1)).flatten();
+var feb_mean_flat = mean_flat.filter(ee.Filter.eq('month', 2)).flatten();
+var mar_mean_flat = mean_flat.filter(ee.Filter.eq('month', 3)).flatten();
+var apr_mean_flat = mean_flat.filter(ee.Filter.eq('month', 4)).flatten();
+var may_mean_flat = mean_flat.filter(ee.Filter.eq('month', 5)).flatten();
+var jun_mean_flat = mean_flat.filter(ee.Filter.eq('month', 6)).flatten();
+var jul_mean_flat = mean_flat.filter(ee.Filter.eq('month', 7)).flatten();
+var aug_mean_flat = mean_flat.filter(ee.Filter.eq('month', 8)).flatten();
+var sep_mean_flat = mean_flat.filter(ee.Filter.eq('month', 9)).flatten();
+var oct_mean_flat = mean_flat.filter(ee.Filter.eq('month', 10)).flatten();
+var nov_mean_flat = mean_flat.filter(ee.Filter.eq('month', 11)).flatten();
+var dec_mean_flat = mean_flat.filter(ee.Filter.eq('month', 12)).flatten();
+var jan_variance_flat = variance_flat.filter(ee.Filter.eq('month', 1)).flatten();
+var feb_variance_flat = variance_flat.filter(ee.Filter.eq('month', 2)).flatten();
+var mar_variance_flat = variance_flat.filter(ee.Filter.eq('month', 3)).flatten();
+var apr_variance_flat = variance_flat.filter(ee.Filter.eq('month', 4)).flatten();
+var may_variance_flat = variance_flat.filter(ee.Filter.eq('month', 5)).flatten();
+var jun_variance_flat = variance_flat.filter(ee.Filter.eq('month', 6)).flatten();
+var jul_variance_flat = variance_flat.filter(ee.Filter.eq('month', 7)).flatten();
+var aug_variance_flat = variance_flat.filter(ee.Filter.eq('month', 8)).flatten();
+var sep_variance_flat = variance_flat.filter(ee.Filter.eq('month', 9)).flatten();
+var oct_variance_flat = variance_flat.filter(ee.Filter.eq('month', 10)).flatten();
+var nov_variance_flat = variance_flat.filter(ee.Filter.eq('month', 11)).flatten();
+var dec_variance_flat = variance_flat.filter(ee.Filter.eq('month', 12)).flatten();
+//slope - steep
+var jan_mean_steep = mean_steep.filter(ee.Filter.eq('month', 1)).flatten();
+var feb_mean_steep = mean_steep.filter(ee.Filter.eq('month', 2)).flatten();
+var mar_mean_steep = mean_steep.filter(ee.Filter.eq('month', 3)).flatten();
+var apr_mean_steep = mean_steep.filter(ee.Filter.eq('month', 4)).flatten();
+var may_mean_steep = mean_steep.filter(ee.Filter.eq('month', 5)).flatten();
+var jun_mean_steep = mean_steep.filter(ee.Filter.eq('month', 6)).flatten();
+var jul_mean_steep = mean_steep.filter(ee.Filter.eq('month', 7)).flatten();
+var aug_mean_steep = mean_steep.filter(ee.Filter.eq('month', 8)).flatten();
+var sep_mean_steep = mean_steep.filter(ee.Filter.eq('month', 9)).flatten();
+var oct_mean_steep = mean_steep.filter(ee.Filter.eq('month', 10)).flatten();
+var nov_mean_steep = mean_steep.filter(ee.Filter.eq('month', 11)).flatten();
+var dec_mean_steep = mean_steep.filter(ee.Filter.eq('month', 12)).flatten();
+var jan_variance_steep = variance_steep.filter(ee.Filter.eq('month', 1)).flatten();
+var feb_variance_steep = variance_steep.filter(ee.Filter.eq('month', 2)).flatten();
+var mar_variance_steep = variance_steep.filter(ee.Filter.eq('month', 3)).flatten();
+var apr_variance_steep = variance_steep.filter(ee.Filter.eq('month', 4)).flatten();
+var may_variance_steep = variance_steep.filter(ee.Filter.eq('month', 5)).flatten();
+var jun_variance_steep = variance_steep.filter(ee.Filter.eq('month', 6)).flatten();
+var jul_variance_steep = variance_steep.filter(ee.Filter.eq('month', 7)).flatten();
+var aug_variance_steep = variance_steep.filter(ee.Filter.eq('month', 8)).flatten();
+var sep_variance_steep = variance_steep.filter(ee.Filter.eq('month', 9)).flatten();
+var oct_variance_steep = variance_steep.filter(ee.Filter.eq('month', 10)).flatten();
+var nov_variance_steep = variance_steep.filter(ee.Filter.eq('month', 11)).flatten();
+var dec_variance_steep = variance_steep.filter(ee.Filter.eq('month', 12)).flatten();
+//------------------------- Calculate CV ------------------------------------------------------
+// ---------------- Apply Power to dB Conversion -------------------------------------------
+// CoV = stdDev/mean
+var toOneNum = function(fc) {
+  var one_num = fc.reduceColumns({ //need this to be a feature collection instead of a feature
+    reducer: ee.Reducer.mean(),
+    selectors: properties
+  })
+  return ee.Number(one_num.get('mean'))//.log10().multiply(10);
+};
+var properties_1 = ee.List(['mean']); // this is still mean, since we used the "mean" reducer to collect the pixel value at the point location
+var stdDev = function(fc) {
+  var one_num = fc.reduceColumns({
+    reducer: ee.Reducer.sum(),
+    selectors: properties_1
+  })
+  var sum = one_num.get('sum')
+  var stdev = ee.Number(sum).sqrt()
+  return stdev//.log10().multiply(10);
+};
+//https://socratic.org/statistics/random-variables/addition-rules-for-variances#:~:text=You%20cannot%20just%20add%20the,won't%20delve%20into).
+//use variance reducer instead of standard deviation, then sum all variance values, finally take square root
+var properties_1 = ee.List(['mean']); // this is still mean, since we used the "mean" reducer to collect the pixel value at the point location
+var toDb = function(num) {
+  return num.log10().multiply(10);
+};
+var list_CV_evergreen_db = ee.List([
+  toDb(stdDev(jan_variance_evergreen).divide(toOneNum(jan_mean_evergreen))),
+  toDb(stdDev(feb_variance_evergreen).divide(toOneNum(feb_mean_evergreen))), 
+  toDb(stdDev(mar_variance_evergreen).divide(toOneNum(mar_mean_evergreen))),
+  toDb(stdDev(apr_variance_evergreen).divide(toOneNum(apr_mean_evergreen))), 
+  toDb(stdDev(may_variance_evergreen).divide(toOneNum(may_mean_evergreen))),  
+  toDb(stdDev(jun_variance_evergreen).divide(toOneNum(jun_mean_evergreen))),
+  toDb(stdDev(jul_variance_evergreen).divide(toOneNum(jul_mean_evergreen))),
+  toDb(stdDev(aug_variance_evergreen).divide(toOneNum(aug_mean_evergreen))),
+  toDb(stdDev(sep_variance_evergreen).divide(toOneNum(sep_mean_evergreen))),
+  toDb(stdDev(oct_variance_evergreen).divide(toOneNum(oct_mean_evergreen))), 
+  toDb(stdDev(nov_variance_evergreen).divide(toOneNum(nov_mean_evergreen))), 
+  toDb(stdDev(dec_variance_evergreen).divide(toOneNum(dec_mean_evergreen)))
+]);
+print(list_CV_evergreen_db, "CV Evergreen (db)");
+var list_CV_grassland_db = ee.List([
+  toDb(stdDev(jan_variance_grassland).divide(toOneNum(jan_mean_grassland))),
+  toDb(stdDev(feb_variance_grassland).divide(toOneNum(feb_mean_grassland))), 
+  toDb(stdDev(mar_variance_grassland).divide(toOneNum(mar_mean_grassland))),
+  toDb(stdDev(apr_variance_grassland).divide(toOneNum(apr_mean_grassland))), 
+  toDb(stdDev(may_variance_grassland).divide(toOneNum(may_mean_grassland))),  
+  toDb(stdDev(jun_variance_grassland).divide(toOneNum(jun_mean_grassland))),
+  toDb(stdDev(jul_variance_grassland).divide(toOneNum(jul_mean_grassland))),
+  toDb(stdDev(aug_variance_grassland).divide(toOneNum(aug_mean_grassland))),
+  toDb(stdDev(sep_variance_grassland).divide(toOneNum(sep_mean_grassland))),
+  toDb(stdDev(oct_variance_grassland).divide(toOneNum(oct_mean_grassland))), 
+  toDb(stdDev(nov_variance_grassland).divide(toOneNum(nov_mean_grassland))), 
+  toDb(stdDev(dec_variance_grassland).divide(toOneNum(dec_mean_grassland)))
+]);
+  
+print(list_CV_grassland_db, "list_CV_grassland_db");
+var list_CV_flat_db = ee.List([
+  toDb(stdDev(jan_variance_flat).divide(toOneNum(jan_mean_flat))),
+  toDb(stdDev(feb_variance_flat).divide(toOneNum(feb_mean_flat))), 
+  toDb(stdDev(mar_variance_flat).divide(toOneNum(mar_mean_flat))),
+  toDb(stdDev(apr_variance_flat).divide(toOneNum(apr_mean_flat))), 
+  toDb(stdDev(may_variance_flat).divide(toOneNum(may_mean_flat))),  
+  toDb(stdDev(jun_variance_flat).divide(toOneNum(jun_mean_flat))),
+  toDb(stdDev(jul_variance_flat).divide(toOneNum(jul_mean_flat))),
+  toDb(stdDev(aug_variance_flat).divide(toOneNum(aug_mean_flat))),
+  toDb(stdDev(sep_variance_flat).divide(toOneNum(sep_mean_flat))),
+  toDb(stdDev(oct_variance_flat).divide(toOneNum(oct_mean_flat))), 
+  toDb(stdDev(nov_variance_flat).divide(toOneNum(nov_mean_flat))), 
+  toDb(stdDev(dec_variance_flat).divide(toOneNum(dec_mean_flat)))
+]);
+  
+print(list_CV_flat_db, "list_CV_flat_db");
+var list_CV_steep_db = ee.List([
+  toDb(stdDev(jan_variance_steep).divide(toOneNum(jan_mean_steep))),
+  toDb(stdDev(feb_variance_steep).divide(toOneNum(feb_mean_steep))), 
+  toDb(stdDev(mar_variance_steep).divide(toOneNum(mar_mean_steep))),
+  toDb(stdDev(apr_variance_steep).divide(toOneNum(apr_mean_steep))), 
+  toDb(stdDev(may_variance_steep).divide(toOneNum(may_mean_steep))),  
+  toDb(stdDev(jun_variance_steep).divide(toOneNum(jun_mean_steep))),
+  toDb(stdDev(jul_variance_steep).divide(toOneNum(jul_mean_steep))),
+  toDb(stdDev(aug_variance_steep).divide(toOneNum(aug_mean_steep))),
+  toDb(stdDev(sep_variance_steep).divide(toOneNum(sep_mean_steep))),
+  toDb(stdDev(oct_variance_steep).divide(toOneNum(oct_mean_steep))), 
+  toDb(stdDev(nov_variance_steep).divide(toOneNum(nov_mean_steep))), 
+  toDb(stdDev(dec_variance_steep).divide(toOneNum(dec_mean_steep)))
+]);
+print(list_CV_steep_db, "list_CV_steep_db");
+ 
+///////////////////////////// Generate Graph & CSV ////////////////////////////////////////////////////
+var jan = 1;
+var feb = 2;
+var mar = 3;
+var apr = 4;
+var may = 5;
+var jun = 6;
+var jul = 7;
+var aug = 8;
+var sep = 9;
+var oct = 10;
+var nov = 11;
+var dec = 12;
+// Define the chart and print it to the console.
+var chart_CV_evergreen_db = ui.Chart.array.values({array: list_CV_evergreen_db, axis: 0, xLabels: months})
+                .setOptions({
+                  title: 'CV Evergreen',
+                  hAxis: {
+                    title: 'months',
+                    viewWindowMode: 'maximized',
+                    ticks: [
+                      {v: jan, f: 'Jan'},
+                      {v: feb, f: 'Feb'},
+                      {v: mar, f: 'Mar'},
+                      {v: apr, f: 'Apr'},
+                      {v: may, f: 'May'},
+                      {v: jun, f: 'Jun'},
+                      {v: jul, f: 'Jul'},
+                      {v: aug, f: 'Aug'},
+                      {v: sep, f: 'Sep'},
+                      {v: oct, f: 'Oct'},
+                      {v: nov, f: 'Nov'},
+                      {v: dec, f: 'Dec'}
+                    ],
+                    titleTextStyle: {italic: false, bold: true}
+                  },
+                  vAxis: {
+                    title: 'backscatter (db)',
+                    titleTextStyle: {italic: false, bold: true}
+                  },
+                  colors: ['39a8a7'],
+                  lineWidth: 3,
+                  pointSize: 7,
+                  viewWindow: {min: jan, max: dec},
+                  legend: {position: 'none'}
+                });
+print(chart_CV_evergreen_db);
+var chart_CV_grassland_db = ui.Chart.array.values({array: list_CV_grassland_db, axis: 0, xLabels: months})
+                .setOptions({
+                  title: 'CV Grassland',
+                  hAxis: {
+                    title: 'months',
+                    viewWindowMode: 'maximized',
+                    ticks: [
+                      {v: jan, f: 'Jan'},
+                      {v: feb, f: 'Feb'},
+                      {v: mar, f: 'Mar'},
+                      {v: apr, f: 'Apr'},
+                      {v: may, f: 'May'},
+                      {v: jun, f: 'Jun'},
+                      {v: jul, f: 'Jul'},
+                      {v: aug, f: 'Aug'},
+                      {v: sep, f: 'Sep'},
+                      {v: oct, f: 'Oct'},
+                      {v: nov, f: 'Nov'},
+                      {v: dec, f: 'Dec'}
+                    ],
+                    titleTextStyle: {italic: false, bold: true}
+                  },
+                  vAxis: {
+                    title: 'backscatter (db)',
+                    titleTextStyle: {italic: false, bold: true}
+                  },
+                  colors: ['39a8a7'],
+                  lineWidth: 3,
+                  pointSize: 7,
+                  viewWindow: {min: jan, max: dec},
+                  legend: {position: 'none'}
+                });
+print(chart_CV_grassland_db);
+ 
+var chart_CV_steep_db = ui.Chart.array.values({array: list_CV_steep_db, axis: 0, xLabels: months})
+                .setOptions({
+                  title: 'CV Steep',
+                  hAxis: {
+                    title: 'months',
+                    viewWindowMode: 'maximized',
+                    ticks: [
+                      {v: jan, f: 'Jan'},
+                      {v: feb, f: 'Feb'},
+                      {v: mar, f: 'Mar'},
+                      {v: apr, f: 'Apr'},
+                      {v: may, f: 'May'},
+                      {v: jun, f: 'Jun'},
+                      {v: jul, f: 'Jul'},
+                      {v: aug, f: 'Aug'},
+                      {v: sep, f: 'Sep'},
+                      {v: oct, f: 'Oct'},
+                      {v: nov, f: 'Nov'},
+                      {v: dec, f: 'Dec'}
+                    ],
+                    titleTextStyle: {italic: false, bold: true}
+                  },
+                  vAxis: {
+                    title: 'backscatter (db)',
+                    titleTextStyle: {italic: false, bold: true}
+                  },
+                  colors: ['39a8a7'],
+                  lineWidth: 3,
+                  pointSize: 7,
+                  viewWindow: {min: jan, max: dec},
+                  legend: {position: 'none'}
+                });
+print(chart_CV_steep_db);
+var chart_CV_flat_db = ui.Chart.array.values({array: list_CV_flat_db, axis: 0, xLabels: months})
+                .setOptions({
+                  title: 'CV flat',
+                  hAxis: {
+                    title: 'months',
+                    viewWindowMode: 'maximized',
+                    ticks: [
+                      {v: jan, f: 'Jan'},
+                      {v: feb, f: 'Feb'},
+                      {v: mar, f: 'Mar'},
+                      {v: apr, f: 'Apr'},
+                      {v: may, f: 'May'},
+                      {v: jun, f: 'Jun'},
+                      {v: jul, f: 'Jul'},
+                      {v: aug, f: 'Aug'},
+                      {v: sep, f: 'Sep'},
+                      {v: oct, f: 'Oct'},
+                      {v: nov, f: 'Nov'},
+                      {v: dec, f: 'Dec'}
+                    ],
+                    titleTextStyle: {italic: false, bold: true}
+                  },
+                  vAxis: {
+                    title: 'backscatter (db)',
+                    titleTextStyle: {italic: false, bold: true}
+                  },
+                  colors: ['39a8a7'],
+                  lineWidth: 3,
+                  pointSize: 7,
+                  viewWindow: {min: jan, max: dec},
+                  legend: {position: 'none'}
+                });
+print(chart_CV_flat_db);
