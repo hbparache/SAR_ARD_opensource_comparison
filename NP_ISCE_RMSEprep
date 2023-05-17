@@ -1,0 +1,162 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var NP_AS = ee.ImageCollection("projects/servir-amazonia/RTC_Comparison/NP_AS"),
+    S1A_NP_DES = ee.ImageCollection("projects/servir-amazonia/RTC_Comparison/NP_DES"),
+    S1B_NP_DES = ee.ImageCollection("projects/servir-amazonia/RTC_Comparison/S1B_NP_DES"),
+    intersect_geo = ee.FeatureCollection("projects/iscertc/assets/intersect_geo_03-23"),
+    evergreen_samples_flat = ee.FeatureCollection("projects/iscertc/assets/np_samples_evergreen_flat_5000"),
+    evergreen_samples_steep = ee.FeatureCollection("projects/iscertc/assets/np_samples_evergreen_steep_5000");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+////////////////////////////////////////////////////////////////////////////////////////
+// SAR-RTC Comparison - SERVIR/ASF/Google 
+// - Time Series  
+// --- Coefficient of Variation (CoV) by forest & grassland (VV vs. VH)
+// --- CoV by flat & steep (VV vs. VH)
+// Author: Helen Blue Parache, Marshall Space Flight Center
+// Date created: 10/09/2020 
+// Last modified:5/12/2023
+////////////////////////////////////////////////////////////////////////////////////////
+// User will need to change the dataset that is being sampled, and the export to table id
+// bring in SAR dataset
+// prep points for RMSE calculation
+// edit user input below
+///////////////////////////////////////// ISCE ///////////////////////////////////////////////
+//Prep SAR data
+// ---------------- Filter by VV & VH --------------------------------------------------
+//Note: original imagecollection for ISCE does not have an image ID in Properties
+//edit this variable for each image collection to be filtered
+//eventually make it a function to map to all the image collections input?
+var ic = NP_AS;
+//Reference: https://gis.stackexchange.com/questions/342541/how-to-define-add-image-id-in-google-earth-engine
+//Approach: add image id as a property, then filter by 'contains' 
+var count = ic.size().getInfo();
+var imageList = ic.toList(count);
+//setting up a null image collection to add the updated images with properties to
+var new_ic = ee.ImageCollection([]);
+for (var i = 0; i < count; i++) { //iterating through the images
+  var img = ee.Image(imageList.get(i)); //grab one image at a time
+  var id = img.id().getInfo() || 'image_'+i.toString(); //get the id of the image, make it into a string
+  //now I want to set the id as a property of the image
+  //reference https://gis.stackexchange.com/questions/309169/when-adding-properties-to-an-image-no-longer-allowed-to-add-to-map  
+  var imgWProp = img.setMulti({
+    AOI: "NP",
+    product: "isce",
+    ID: id
+    });
+  // cast it
+  imgWProp = ee.Image(imgWProp);
+  //now need to add all to a collection, so that I can bring it back in and sort, etc.
+  var new_ic = new_ic.merge(imgWProp);
+}
+//filter out VV images
+var NP_AS_VV = new_ic.filterMetadata('ID','contains','VV'); //result is 28 elements, as expected!!!
+print (NP_AS_VV);
+//filter out VH images
+var NP_AS_VH = new_ic.filterMetadata('ID','contains','VH'); //result is 28 elements, as expected!!!
+print (NP_AS_VH);
+//now to repeat this process for the two descending image collections 
+//edit this variable for each image collection to be filtered
+var ic = S1A_NP_DES;
+var count = ic.size().getInfo();
+var imageList = ic.toList(count);
+//setting up a null image collection to add the updated images with properties to
+var new_ic = ee.ImageCollection([]);
+for (var i = 0; i < count; i++) { //iterating through the images
+  var img = ee.Image(imageList.get(i)); //grab one image at a time
+  var id = img.id().getInfo() || 'image_'+i.toString(); //get the id of the image, make it into a string
+  //now I want to set the id as a property of the image
+  //reference https://gis.stackexchange.com/questions/309169/when-adding-properties-to-an-image-no-longer-allowed-to-add-to-map  
+  var imgWProp = img.setMulti({
+    AOI: "NP",
+    product: "isce",
+    ID: id
+    });
+  // cast it
+  imgWProp = ee.Image(imgWProp);
+  //now need to add all to a collection, so that I can bring it back in and sort, etc.
+  var new_ic = new_ic.merge(imgWProp);
+}
+//filter out VV images
+var S1A_NP_DES_VV = new_ic.filterMetadata('ID','contains','VV'); 
+print (S1A_NP_DES_VV);
+//filter out VH images
+var S1A_NP_DES_VH = new_ic.filterMetadata('ID','contains','VH'); 
+print (S1A_NP_DES_VH); 
+//edit this variable for each image collection to be filtered
+var ic = S1B_NP_DES;
+var count = ic.size().getInfo();
+var imageList = ic.toList(count);
+//setting up a null image collection to add the updated images with properties to
+var new_ic = ee.ImageCollection([]);
+for (var i = 0; i < count; i++) { //iterating through the images
+  var img = ee.Image(imageList.get(i)); //grab one image at a time
+  var id = img.id().getInfo() || 'image_'+i.toString(); //get the id of the image, make it into a string
+  //now I want to set the id as a property of the image
+  //reference https://gis.stackexchange.com/questions/309169/when-adding-properties-to-an-image-no-longer-allowed-to-add-to-map  
+  var imgWProp = img.setMulti({
+    AOI: "NP",
+    product: "isce",
+    ID: id
+    });
+  // cast it
+  imgWProp = ee.Image(imgWProp);
+  
+  // cast it
+  imgWProp = ee.Image(imgWProp);
+  //now need to add all to a collection, so that I can bring it back in and sort, etc.
+  var new_ic = new_ic.merge(imgWProp);
+}
+//filter out VV images
+var S1B_NP_DES_VV = new_ic.filterMetadata('ID','contains','VV'); 
+print (S1B_NP_DES_VV);
+//filter out VH images
+var S1B_NP_DES_VH = new_ic.filterMetadata('ID','contains','VH'); 
+print (S1B_NP_DES_VH); 
+// ---------------- NP ISCE ------------------------------------------------------
+// Merge as appropriate:
+//     (1) descending vv
+//     (2) ascending vv
+//     (3) descending vh
+//     (4) ascending vh
+// To create:
+//     (1) vh (ascending & descending)
+//     (2) vv (ascending & descending)
+ 
+//removing S1B imagery to have nearly equal number of AS and DES scenes
+var NP_DES = S1A_NP_DES; //.merge(S1B_NP_DES); 
+//NP_AS already exists, but without added Properties
+var NP_VV = S1A_NP_DES_VV.merge(NP_AS_VV); //.merge(S1B_NP_DES_VV)
+var NP_VH = S1A_NP_DES_VH.merge(NP_AS_VH); //.merge(S1B_NP_DES_VH)
+var des_pw = S1A_NP_DES.merge(S1B_NP_DES); 
+var as_pw = NP_AS;
+var NP_DES_VV = S1A_NP_DES_VV; //.merge(S1B_NP_DES_VV);
+var vv_isce = S1A_NP_DES_VV.merge(NP_AS_VV); //.merge(S1B_NP_DES_VV)
+var vh_isce = S1A_NP_DES_VH.merge(NP_AS_VH); //.merge(S1B_NP_DES_VH)
+//////////////////////////////// SWAP INPUTS BELOW //////////////////////////////////////////////////////
+//run for vv and for vh
+//run for evergreen_flat and evergreen_steep samples
+//var input = vv_isce;
+var input = vh_isce;
+var samples = evergreen_samples_flat;
+//var samples = evergreen_samples_steep;
+var folder_name = 'RMSE_prep';
+var desc = 'NP_ISCE_flat_vh_REAL'; // output file name for AOI, samples, polarization, & product
+//////////////////////////////// SWAP INPUTS ABOVE //////////////////////////////////////////////////////
+// Collect point, image date, value triplets.
+var triplets = input.map(function(image) {
+  return image.reduceRegions({
+    collection: samples, //changed this
+    reducer: ee.Reducer.mean(), 
+    scale: 10
+  }).filter(ee.Filter.neq('mean', null)).filter(ee.Filter.neq('mean', 0))
+    .map(function(f) { 
+      return f.set('Date', ee.Date(image.get('system:time_start'))); 
+    });
+}).flatten();
+print(triplets.first());
+Export.table.toDrive({
+  collection: triplets,
+  description: desc, 
+  fileNamePrefix: desc,
+  folder: folder_name,
+  fileFormat: 'CSV'
+});
