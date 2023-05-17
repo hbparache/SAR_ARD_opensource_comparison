@@ -18,4 +18,6 @@ Scripts for time series analysis of five ARD SAR products
 - for Gamma to SNAP 8
 4. Create figures & calculate CoV ranges
 
+To access in GEE: https://code.earthengine.google.com/?accept_repo=users/helenbluebaldwin/SAR_ARD_TimeSeries
+
 Citation: Coming soon
