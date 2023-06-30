@@ -3,7 +3,7 @@
 Scripts for time series analysis of five ARD SAR products 
 
 To access in GEE: https://code.earthengine.google.com/?accept_repo=users/helenbluebaldwin/SAR_ARD_TimeSeries
-
+i. Project ISCE datasets (code from Simon Kraatz)
 1. Generate samples 
 - for CoV time series comparison
 - for RMSE time series comparison
